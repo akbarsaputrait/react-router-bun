@@ -1,22 +1,26 @@
-FROM node:20-alpine AS development-dependencies-env
+# Stage 1: Development dependencies
+FROM oven/bun:latest as development-dependencies-env
 COPY . /app
 WORKDIR /app
-RUN npm ci
+RUN bun install
 
-FROM node:20-alpine AS production-dependencies-env
-COPY ./package.json package-lock.json /app/
+# Stage 2: Production dependencies
+FROM oven/bun:latest as production-dependencies-env
+COPY ./package.json bun.lockb /app/
 WORKDIR /app
-RUN npm ci --omit=dev
+RUN bun install --production
 
-FROM node:20-alpine AS build-env
+# Stage 3: Build
+FROM oven/bun:latest as build-env
 COPY . /app/
 COPY --from=development-dependencies-env /app/node_modules /app/node_modules
 WORKDIR /app
-RUN npm run build
+RUN bun run build
 
-FROM node:20-alpine
-COPY ./package.json package-lock.json server.js /app/
+# Stage 4: Production environment
+FROM oven/bun:latest
+COPY ./package.json bun.lockb server.js /app/
 COPY --from=production-dependencies-env /app/node_modules /app/node_modules
 COPY --from=build-env /app/build /app/build
 WORKDIR /app
-CMD ["npm", "run", "start"]
+CMD ["bun", "run", "start"]
